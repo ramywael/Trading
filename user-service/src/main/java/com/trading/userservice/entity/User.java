@@ -4,6 +4,7 @@ package com.trading.userservice.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Table(name = "users")
 @Entity
+@Builder
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

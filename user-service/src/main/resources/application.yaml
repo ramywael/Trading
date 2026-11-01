@@ -1,3 +1,9 @@
 spring:
   application:
     name: user-service
+
+jwt:
+  # Base64-encoded, >= 32 bytes (HS256). No default on purpose: fail fast if unset.
+  secret: "vN8xK4pQ9mR2tY7wF6aL3cZ5jH1sB0eD8uGqW4iX9oPkT2fM7rA6yC3bE5dS1hJ"
+  access-expiration: 60m
+  refresh-expiration: 7d

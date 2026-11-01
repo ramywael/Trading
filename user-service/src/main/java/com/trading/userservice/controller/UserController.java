@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users")
@@ -48,5 +50,36 @@ public class UserController {
     public ResponseEntity<UserResponse> getUserById(@PathVariable String userId){
         return ResponseEntity.ok(userService.getUserById(userId));
     }
+    @PostMapping("/{userId}/funds/add")
+    public ResponseEntity<UserResponse> addFunds(
+            @PathVariable String userId,
+            @RequestParam BigDecimal amount
+    )
+    {
+        return  ResponseEntity.ok(userService.addFunds(userId,amount));
+    }
+
+
+    @PostMapping("/{userId}/funds/deduct")
+    public ResponseEntity<UserResponse> deductMoney(
+            @PathVariable String userId,
+            @RequestParam BigDecimal amount
+    ){
+        return  ResponseEntity.ok(userService.deductMoney(userId,amount));
+    }
+
+
+
+    @PostMapping("/{userId}/funds/credit")
+    public ResponseEntity<UserResponse> creditFunds(
+            @PathVariable String userId,
+            @RequestParam BigDecimal amount
+    ){
+        return  ResponseEntity.ok(userService.creditFunds(userId,amount));
+    }
+
+
+
+
 
 }
