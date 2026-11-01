@@ -1,7 +1,9 @@
 package com.trading.userservice.service;
 
 import com.trading.userservice.dto.AuthResponse;
+import com.trading.userservice.dto.LoginRequest;
 import com.trading.userservice.dto.RegisterRequest;
+import com.trading.userservice.dto.UserResponse;
 import com.trading.userservice.entity.User;
 import com.trading.userservice.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -137,6 +139,91 @@ public class UserService {
 
 
 
+
+    /*
+        add Funds To Wallet
+     *
+     *
+     *
+     *
+     *
+     */
+
+    public UserResponse addFunds(String userId,BigDecimal amount){
+      User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found :"+userId));
+
+        user.setWalletBalance(user.getWalletBalance().add(amount));
+
+        User savedUser= userRepository.save(user);
+
+
+        log.info("Funds Added : {} To User : {}",amount,userId);
+        return mapToResponse(savedUser);
+
+    }
+
+
+    /*
+        Credit funds to wallet - Called on Sell Order
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+     */
+
+
+    public UserResponse creditFunds(String userId,BigDecimal amount){
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found :"+userId));
+
+        user.setWalletBalance(user.getWalletBalance().add(amount));
+
+        User savedUser= userRepository.save(user);
+
+
+        log.info("Funds credited : {} To User : {}",amount,userId);
+        return mapToResponse(savedUser);
+
+    }
+
+
+    /*
+        Deduct finds from wallet - Called on Buy Order
+      *
+      *
+      *
+      *
+      *
+      *
+     */
+
+
+    public UserResponse deductMoney(String userId,BigDecimal amount){
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found :"+userId));
+
+
+
+        if(user.getWalletBalance().compareTo(amount) < 0){
+            throw new RuntimeException("Insufficient Wallet Balance");
+        }
+
+
+
+        user.setWalletBalance(user.getWalletBalance().subtract(amount));
+
+        User savedUser= userRepository.save(user);
+
+
+        log.info("Funds deducted : {} To User : {}",amount,userId);
+        return mapToResponse(savedUser);
+    }
+
+
     private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
         AuthResponse response = new AuthResponse();
         response.setUserId(user.getId());
@@ -149,5 +236,63 @@ public class UserService {
         return response;
     }
 
+
+    public AuthResponse login(LoginRequest loginRequest)
+    {
+        log.info("login attempt : {}",loginRequest.getEmail());
+
+        User user = userRepository.findByEmail(loginRequest.getEmail()).orElseThrow(
+                () ->  new RuntimeException("User Not Found" + loginRequest.getEmail()));
+
+
+
+        if(!passwordEncoder.matches(loginRequest.getPassword(),user.getPassword())){
+            throw new RuntimeException("Invalid Credentials");
+        }
+
+        log.info("login successfully : {}",user.getId());
+
+
+        String token= generateAccessToken(user.getId(),user.getEmail());
+
+
+        String refreshToken=generateRefreshToken(user.getId());
+
+
+        return buildAuthResponse(user,token,refreshToken);
+
+
+    }
+
+
+    /*
+      * Get User By Id
+      * Called By Other Services via feign (internal)
+      *
+      *
+     */
+
+    public UserResponse getUserById(String userId){
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found :"+userId));
+
+                return  mapToResponse(user);
+
+    }
+
+
+    private UserResponse mapToResponse(User user){
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setFirstName(user.getFirstName());
+        response.setLastName(user.getLastName());
+        response.setWalletBalance(user.getWalletBalance());
+        response.setUserStatus(user.getUserStatus());
+
+        return response;
+
+    }
 
 }

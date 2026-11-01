@@ -2,6 +2,45 @@ spring:
   application:
     name: user-service
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      # ponytail: update is fine for dev; switch to validate + Flyway before prod
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: User registration, auth and wallet service
+    version: 0.0.1-SNAPSHOT
+
 jwt:
   # Base64-encoded, >= 32 bytes (HS256). No default on purpose: fail fast if unset.
   secret: "vN8xK4pQ9mR2tY7wF6aL3cZ5jH1sB0eD8uGqW4iX9oPkT2fM7rA6yC3bE5dS1hJ"
