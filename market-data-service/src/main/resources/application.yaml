@@ -1,3 +1,42 @@
 spring:
   application:
     name: market-data-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/market_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      # ponytail: update is fine for dev; switch to validate + Flyway before prod
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8082
+
+market:
+  price-update-interval: 2000
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
