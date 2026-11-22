@@ -10,11 +10,13 @@ import com.trading.orderservice.entity.OrderType;
 import com.trading.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,13 +24,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
     private final MarketDataClient marketDataClient;
     private final UserServiceClient userServiceClient;
 
-    private static final String ORDER_EXECUTED_TOPIC="order.executed";
-    private static final String ORDER_FAILED_TOPIC="order.failed";
-
+    private static final String ORDER_EXECUTED_TOPIC = "order.executed";
+    private static final String ORDER_FAILED_TOPIC = "order.failed";
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /*
      * Place a Buy Or Sell Order
@@ -47,7 +49,7 @@ public class OrderService {
 
 
         //STEP 1
-        Map<String,Object> priceDate =marketDataClient.getStockPrice(orderRequest.getSymbol());
+        Map<String, Object> priceDate = marketDataClient.getStockPrice(orderRequest.getSymbol());
 
         BigDecimal currentPrice = new BigDecimal(
                 priceDate.get("price").toString()
@@ -58,7 +60,6 @@ public class OrderService {
         BigDecimal totalAmount = currentPrice.multiply(
                 BigDecimal.valueOf(orderRequest.getQuantity())
         );
-
 
 
         // Create Order
@@ -74,16 +75,15 @@ public class OrderService {
 
 
         //save order
-        Order savedOrder =orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
 
-        log.info("Order Created {}",savedOrder.getId());
+        log.info("Order Created {}", savedOrder.getId());
 
-        try{
-            if(orderRequest.getOrderType() == OrderType.BUY)
-            {
-                userServiceClient.deductMoney(orderRequest.getUserId(),totalAmount);
-            }else{
-                userServiceClient.creditFunds(orderRequest.getUserId(),totalAmount);
+        try {
+            if (orderRequest.getOrderType() == OrderType.BUY) {
+                userServiceClient.deductMoney(orderRequest.getUserId(), totalAmount);
+            } else {
+                userServiceClient.creditFunds(orderRequest.getUserId(), totalAmount);
             }
 
             savedOrder.setOrderStatus(OrderStatus.EXECUTED);
@@ -91,12 +91,11 @@ public class OrderService {
 
             orderRepository.save(savedOrder);
 
-            log.info("Order EXECUTED : {} {} x {} at {}",orderRequest.getOrderType(),orderRequest.getQuantity(),orderRequest.getSymbol(),currentPrice);
-
+            log.info("Order EXECUTED : {} {} x {} at {}", orderRequest.getOrderType(), orderRequest.getQuantity(), orderRequest.getSymbol(), currentPrice);
 
 
             // Publish
-            publishOrderEvent(ORDER_EXECUTED_TOPIC,savedOrder,null);
+            publishOrderEvent(ORDER_EXECUTED_TOPIC, savedOrder, null);
 
 
         } catch (Exception e) {
@@ -104,20 +103,44 @@ public class OrderService {
             savedOrder.setFailedReason(e.getMessage());
             orderRepository.save(savedOrder);
 
-            log.error("Order FAILED : {} reason: {}",savedOrder.getId(),savedOrder.getFailedReason());
+            log.error("Order FAILED : {} reason: {}", savedOrder.getId(), savedOrder.getFailedReason());
 
-            publishOrderEvent(ORDER_FAILED_TOPIC,savedOrder,e.getMessage());
+            publishOrderEvent(ORDER_FAILED_TOPIC, savedOrder, e.getMessage());
 
         }
 
-
+        return savedOrder;
     }
 
-    private void publishOrderEvent(String topic,Order order,String failedReason){
 
-        Map<String,Object> orderEvent = new HashMap<>();
-        orderEvent.put("orderId",order.getId());
+    public Order getOrderById(String orderId){
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order Not Found"));
+        return order;
+    }
 
+    public List<Order> getUserOrders(String userId){
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+
+
+    private void publishOrderEvent(String topic, Order order, String failedReason) {
+
+        Map<String, Object> orderEvent = new HashMap<>();
+        orderEvent.put("orderId", order.getId());
+        orderEvent.put("userId", order.getUserId());
+        orderEvent.put("type", order.getOrderType());
+        orderEvent.put("symbol", order.getSymbol());
+        orderEvent.put("status", order.getOrderStatus().name());
+        orderEvent.put("price", order.getPrice());
+        orderEvent.put("Quantity", order.getQuantity());
+        orderEvent.put("totalAmount", order.getTotalAmount());
+        if (failedReason != null) orderEvent.put("reason", order.getFailedReason());
+
+        kafkaTemplate.send(topic, order.getId(), orderEvent);
+
+        log.info("Event Published  {} for  order:    {}", topic, order.getId());
 
     }
 }

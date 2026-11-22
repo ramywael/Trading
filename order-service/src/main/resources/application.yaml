@@ -1,3 +1,62 @@
 spring:
   application:
     name: order-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/order_db
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      # ponytail: update is fine for dev; switch to validate + Flyway before prod
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 5000
+
+server:
+  port: 8083
+
+# Base URLs for the Feign clients (MarketDataClient, UserServiceClient)
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8080}
+
+market:
+  service:
+    url: ${MARKET_SERVICE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Order placement and execution service
+    version: 0.0.1-SNAPSHOT

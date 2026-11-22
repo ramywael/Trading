@@ -34,14 +34,14 @@ public class OrderController {
             ) {
         orderRequest.setUserId(userId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(orderService.placeOrder(request));
+                .body(orderService.placeOrder(orderRequest));
 
     }
 
     @GetMapping("/{orderId}")
     public ResponseEntity<Order> getOrder(@PathVariable String orderId,@RequestHeader("X-User-Id") String userId){
 
-        Order order = orderService.getOrder(orderId);
+        Order order = orderService.getOrderById(orderId);
 
         //security Check
 
@@ -58,7 +58,7 @@ public class OrderController {
     @GetMapping("/my-orders")
     public ResponseEntity<List<Order>> getMyOrders(@RequestHeader("X-User-Id") String userId){
 
-        List<Order> orderList = orderService.getMyOrders(userId);
+        List<Order> orderList = orderService.getUserOrders(userId);
 
         return ResponseEntity.ok(orderList);
     }
