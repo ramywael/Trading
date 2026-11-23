@@ -2,7 +2,7 @@ package com.trading.portfolioservice.service;
 
 import com.trading.portfolioservice.client.MarketDataClient;
 import com.trading.portfolioservice.entity.Holding;
-import com.trading.portfolioservice.repository.PortfolioRepository;
+import com.trading.portfolioservice.repository.HoldingRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import java.util.Map;
 public class PortfolioService {
 
 
-    private PortfolioRepository portfolioRepository;
+    private HoldingRepository portfolioRepository;
     private MarketDataClient marketDataClient;
 
     /*
