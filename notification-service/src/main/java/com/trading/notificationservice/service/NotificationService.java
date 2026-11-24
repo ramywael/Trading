@@ -29,7 +29,7 @@ public class NotificationService {
 
             sendMessage(userId
                     , type.equalsIgnoreCase("buy") ? "ORDER-EXECUTED-BUY" : "ORDER-EXECUTED-SELL"
-                    , String.format("%s %s shared of %s at %s. Total %s", type, quantity, symbol, price, totalAmount));
+                    , String.format("%s %s shares of %s at %s. Total %s", type, quantity, symbol, price, totalAmount));
 
 
         } catch (Exception ex) {
@@ -47,7 +47,7 @@ public class NotificationService {
             String symbol = (String) payLoad.get("symbol");
             String reason = (String) payLoad.get("reason");
 
-            sendMessage(userId, "Order Failed", String.format("Your Order for %s faile.Reason : %s", symbol, reason));
+            sendMessage(userId, "Order Failed", String.format("Your Order for %s failed. Reason: %s", symbol, reason));
         } catch (Exception ex) {
             log.error("Error : {}", ex.getMessage());
 
