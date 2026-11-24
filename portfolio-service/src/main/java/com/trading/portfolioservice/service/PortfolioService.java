@@ -123,7 +123,7 @@ public class PortfolioService {
 
 
             } catch (Exception exception) {
-                log.error("Error While Fetching {}  : {}",holding.getSymbol(),exception.getMessage());
+                log.error("Error While Fetching {}  : {}", holding.getSymbol(), exception.getMessage());
             }
         }
 
@@ -142,21 +142,23 @@ public class PortfolioService {
         BigDecimal totalPnlPercent = totalInvested.compareTo(BigDecimal.ZERO) == 0
                 ? BigDecimal.ZERO
                 : totalPnl.divide(totalInvested, 4, RoundingMode.HALF_UP)   // 0.0515
-                          .multiply(BigDecimal.valueOf(100))                // 5.1500
-                          .setScale(2, RoundingMode.HALF_UP);               // 5.15
+                .multiply(BigDecimal.valueOf(100))                // 5.1500
+                .setScale(2, RoundingMode.HALF_UP);               // 5.15
 
-        Map<String,Object> portfolio = new HashMap<>();
-        portfolio.put("holdings",portfolioItems);
-        portfolio.put("userId",userId);
-        portfolio.put("totalPnl",totalPnl);
-        portfolio.put("totalPnlPercent",totalPnlPercent);
-        portfolio.put("totalInvested",totalInvested);
-        portfolio.put("currentValue",currentValue);
+        Map<String, Object> portfolio = new HashMap<>();
+        portfolio.put("holdings", portfolioItems);
+        portfolio.put("userId", userId);
+        portfolio.put("totalPnl", totalPnl);
+        portfolio.put("totalPnlPercent", totalPnlPercent);
+        portfolio.put("totalInvested", totalInvested);
+        portfolio.put("currentValue", currentValue);
         portfolio.put("isProfit", totalPnl.compareTo(BigDecimal.ZERO) > 0);
+
 
         return portfolio;
 
     }
+
 
 
 }

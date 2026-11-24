@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface HoldingRepository extends JpaRepository<Holding,String> {
-    public static Optional<Holding> findByUserIdAndSymbol(String userId, String symbol) ;
+    public  Optional<Holding> findByUserIdAndSymbol(String userId, String symbol) ;
 
     public List<Holding> findByUserId(String userId);
 }
