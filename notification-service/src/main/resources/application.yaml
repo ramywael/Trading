@@ -1,3 +1,39 @@
 spring:
   application:
     name: notification-service
+
+  # No datasource: this service only reads Kafka events and logs a notification.
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      # Its own group, different from portfolio-service, so BOTH services get every order.executed event
+      group-id: notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        # Producers send plain Maps: ignore their type header and read every event as a Map
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: java.util.LinkedHashMap
+
+server:
+  port: 8085
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Sends user notifications for registrations and order results
+    version: 0.0.1-SNAPSHOT
