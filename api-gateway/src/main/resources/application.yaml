@@ -1,3 +1,72 @@
 spring:
   application:
     name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        # Spring Cloud 2025.x prefix. Older tutorials use spring.cloud.gateway.routes, which no longer loads.
+        webflux:
+          routes:
+            # user-service: only the public endpoints and /me.
+            # /{userId}/funds/** stay internal: anyone with a token could otherwise change any user's wallet.
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8080}
+              predicates:
+                - Path=/api/v1/users/register,/api/v1/users/login,/api/v1/users/me
+              filters:
+                - JwtAuthFilter      # skips /register and /login itself (isPublicEndpoint)
+
+            - id: market-data-service
+              uri: ${MARKET_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/market/**
+              filters:
+                - JwtAuthFilter
+
+            # WebSocket (STOMP over SockJS). http:// is fine: the gateway switches to ws:// on the upgrade request.
+            - id: market-data-ws
+              uri: ${MARKET_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/ws/**
+
+            - id: order-service
+              uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/orders/**
+              filters:
+                - JwtAuthFilter
+
+            # portfolio-service: only /me. /{userId} is for internal calls and must not be reachable from outside.
+            - id: portfolio-service
+              uri: ${PORTFOLIO_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/portfolio/me
+              filters:
+                - JwtAuthFilter
+
+# 8080 is user-service
+server:
+  port: 8000
+
+# Must be the SAME secret user-service signs tokens with, or every request gets 401.
+jwt:
+  secret: "vN8xK4pQ9mR2tY7wF6aL3cZ5jH1sB0eD8uGqW4iX9oPkT2fM7rA6yC3bE5dS1hJ"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Single entry point; verifies JWTs and routes to the services
+    version: 0.0.1-SNAPSHOT
