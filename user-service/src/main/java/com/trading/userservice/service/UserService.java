@@ -7,6 +7,7 @@ import com.trading.userservice.dto.UserResponse;
 import com.trading.userservice.entity.User;
 import com.trading.userservice.repository.UserRepository;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -100,21 +101,35 @@ public class UserService {
     }
 
 
-    private AuthResponse refreshToken(String token) {
+    /*
+     * Swap a refresh token for a new access token + a new refresh token (rotation).
+     * Public: the controller calls it from POST /api/v1/users/refresh.
+     * Every failure is a 401, so the client knows to send the user back to login.
+     */
+    public AuthResponse refreshToken(String token) {
+
+        // 1. Verify signature + expiry. Only the parsing is in try/catch,
+        //    so the checks below keep their own messages.
+        Claims claims;
         try {
-            Claims claims = parseToken(token);
-
-            if (!Objects.equals(claims.get("type", String.class), "refresh")) {
-                throw new RuntimeException("Invalid Format");
-            }
-            User user = userRepository.findById(claims.getSubject()).orElseThrow(() -> new RuntimeException("User Is Not Found"));
-            String accessToken = generateAccessToken(user.getId(), user.getEmail());
-            String refreshToken = generateRefreshToken(user.getId());
-            return buildAuthResponse(user, accessToken, refreshToken);
-
-        } catch (Exception e) {
-            new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token");
+            claims = parseToken(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token");
         }
+
+        // 2. Only refresh tokens are accepted here (the gateway accepts only access tokens)
+        if (!Objects.equals(claims.get("type", String.class), "refresh")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not a refresh token");
+        }
+
+        // 3. The refresh token has no email, so load the user (also blocks deleted users)
+        User user = userRepository.findById(claims.getSubject())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        // 4. New pair of tokens
+        String accessToken = generateAccessToken(user.getId(), user.getEmail());
+        String refreshToken = generateRefreshToken(user.getId());
+        return buildAuthResponse(user, accessToken, refreshToken);
     }
 
     ///
@@ -157,12 +172,14 @@ public class UserService {
 
     private String generateRefreshToken(String userId) {
 
-        String jti= UUID.randomUUID().toString();
+        // Unique id for this token; it will be the Redis key that marks it as still valid
+        String jti = UUID.randomUUID().toString();
 
         Instant now = Instant.now();
         Instant exp = now.plus(refreshExpiration);
 
         return Jwts.builder()
+                .id(jti)                 // the "jti" claim; read back with claims.getId()
                 .subject(userId)
                 .claim("type", "refresh")
                 .issuedAt(Date.from(now))

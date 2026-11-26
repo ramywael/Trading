@@ -23,6 +23,12 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       acks: all
 
+  # Stores the ids (jti) of refresh tokens that are still valid
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 management:
   endpoints:
     web:
