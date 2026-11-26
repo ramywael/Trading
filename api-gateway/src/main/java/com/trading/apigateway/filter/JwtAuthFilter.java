@@ -10,13 +10,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.ServerHttpRequest;
+// reactive version: WebFlux requests are org.springframework.http.server.reactive.ServerHttpRequest,
+// the servlet org.springframework.http.server.ServerHttpRequest would fail with ClassCastException
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
-import java.security.PublicKey;
+import java.util.List;
 
 
 @Component
@@ -37,7 +39,7 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
 
         return (exchange, chain) -> {
 
-            ServerHttpRequest request = (ServerHttpRequest) exchange.getRequest();
+            ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
 
             //Skiipped JWT For Public Endpoints
@@ -60,20 +62,26 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
             try {
                 Claims claims = extractClaims(token);
 
-                String userId = claims.get("userId", String.class);
+                // A refresh token (7 days) must not work as an access token
+                if (!"access".equals(claims.get("type", String.class))) {
+                    return unauthorizedResponse(exchange, "Not an access token");
+                }
 
-                String email = claims.getSubject();
+                // user-service puts the user id in "sub" and the email in an "email" claim
+                String userId = claims.getSubject();
+                String email = claims.get("email", String.class);
 
                 log.debug("userId: {} email:{}", userId, email);
 
-                ServerHttpRequest modifiedRequest = (ServerHttpRequest) exchange.getRequest().mutate()
+                // remove first: never trust an X-User-Id the client sent
+                ServerHttpRequest modifiedRequest = request.mutate()
                         .headers(h -> {
                             h.remove("X-User-Id");
-                            h.set("X-User-Id", claims.getSubject());
+                            h.set("X-User-Id", userId);
                         })
                         .build();
 
-                return chain.filter(exchange.mutate().request((org.springframework.http.server.reactive.ServerHttpRequest) modifiedRequest).build());
+                return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
 
             } catch (Exception e) {
@@ -85,11 +93,18 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
 
     }
 
+    // Exact paths / prefixes, not contains(): with contains, "/api/v1/orders/login-history"
+    // would also skip the JWT check.
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/api/v1/users/register",
+            "/api/v1/users/login");
+    private static final List<String> PUBLIC_PREFIXES = List.of(
+            "/actuator/health",
+            "/ws/");
+
     private boolean isPublicEndpoint(String path) {
-        return path.contains("/register")
-                || path.contains("/login")
-                || path.contains("health")
-                || path.contains("/ws");
+        return PUBLIC_PATHS.contains(path)
+                || PUBLIC_PREFIXES.stream().anyMatch(path::startsWith);
     }
 
     private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
